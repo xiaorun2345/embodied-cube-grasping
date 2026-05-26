@@ -114,6 +114,8 @@ class CubeGraspEnv(gym.Env):
                 "left_gripper",
                 "right_gripper",
                 "cube_free",
+                "distractor_orange_free",
+                "distractor_purple_free",
             ]
         }
         self._wrist_body_id = self.mujoco.mj_name2id(self.model, self.mujoco.mjtObj.mjOBJ_BODY, "panda_wrist")
@@ -141,6 +143,12 @@ class CubeGraspEnv(gym.Env):
         self.data.qpos[cube_adr : cube_adr + 7] = np.array(
             [cube_xy[0], cube_xy[1], 0.077, 1.0, 0.0, 0.0, 0.0], dtype=np.float64
         )
+        distractor_xys = self._sample_distractor_xys(cube_xy, options)
+        for name, xy in zip(["distractor_orange_free", "distractor_purple_free"], distractor_xys):
+            adr = self._joint_qpos[name]
+            self.data.qpos[adr : adr + 7] = np.array(
+                [xy[0], xy[1], 0.077, 1.0, 0.0, 0.0, 0.0], dtype=np.float64
+            )
         self.data.qvel[:] = 0.0
         self._grasped = False
 
@@ -193,6 +201,27 @@ class CubeGraspEnv(gym.Env):
         cube_adr = self._joint_qpos["cube_free"]
         return self.data.qpos[cube_adr : cube_adr + 7].astype(np.float32).copy()
 
+    def grasp_status(self) -> dict[str, float | bool]:
+        wrist = self.data.xpos[self._wrist_body_id]
+        cube = self.cube_pose()
+        xy_dist = float(np.linalg.norm(cube[:2] - wrist[:2]))
+        z_dist = abs(float(cube[2] - (wrist[2] - self._cube_grasp_z_offset)))
+        closed = self._finger_target > 0.024
+        return {
+            "closed": closed,
+            "grasped": self._grasped,
+            "xy_dist": xy_dist,
+            "z_dist": z_dist,
+            "can_grasp": bool(closed and xy_dist < 0.085 and z_dist < 0.075),
+            "finger_target": float(self._finger_target),
+            "wrist_x": float(wrist[0]),
+            "wrist_y": float(wrist[1]),
+            "wrist_z": float(wrist[2]),
+            "cube_x": float(cube[0]),
+            "cube_y": float(cube[1]),
+            "cube_z": float(cube[2]),
+        }
+
     def _sample_cube_xy(self, options: dict[str, Any] | None) -> np.ndarray:
         if options and "cube_xy" in options:
             return np.asarray(options["cube_xy"], dtype=np.float32)
@@ -203,6 +232,36 @@ class CubeGraspEnv(gym.Env):
             ],
             dtype=np.float32,
         )
+
+    def _sample_distractor_xys(self, cube_xy: np.ndarray, options: dict[str, Any] | None) -> list[np.ndarray]:
+        if options and "distractor_xys" in options:
+            return [np.asarray(xy, dtype=np.float32) for xy in options["distractor_xys"]]
+
+        positions: list[np.ndarray] = []
+        blocked = [np.asarray(cube_xy, dtype=np.float32), self.goal_pos[:2]]
+        zones = [
+            ((0.30, 0.42), (-0.20, -0.08)),
+            ((0.56, 0.68), (0.08, 0.20)),
+        ]
+        for x_range, y_range in zones:
+            for _attempt in range(100):
+                xy = np.array(
+                    [
+                        self._rng.uniform(*x_range),
+                        self._rng.uniform(*y_range),
+                    ],
+                    dtype=np.float32,
+                )
+                if all(float(np.linalg.norm(xy - other)) > 0.10 for other in [*blocked, *positions]):
+                    positions.append(xy)
+                    break
+            else:
+                fallback = np.array(
+                    [sum(x_range) * 0.5, sum(y_range) * 0.5],
+                    dtype=np.float32,
+                )
+                positions.append(fallback)
+        return positions
 
     def _set_targets(self, targets: np.ndarray) -> None:
         arm_targets = np.asarray(targets[: len(ARM_JOINT_NAMES)], dtype=np.float32)

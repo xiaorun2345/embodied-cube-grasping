@@ -139,3 +139,68 @@ B     : 回到 home 姿态
 N     : 重置方块和机械臂
 P     : 在终端打印当前目标值
 ```
+
+## 07_keyboard_control_ee.py
+
+用键盘控制夹爪末端目标位置，比直接控制关节更适合手动抓取：
+
+```bash
+unset MUJOCO_GL
+python examples/07_keyboard_control_ee.py --camera front
+```
+
+基础按键：
+
+```text
+W / S : x forward/back
+A / D : y left/right
+R / F : raise/lower gripper
+Z / X : open/close gripper fully
+B     : 回到 home 目标点
+N     : 重置方块和机械臂
+P     : 在终端打印当前末端目标和抓取状态
+```
+
+辅助抓取快捷键：
+
+```text
+1 : 移动到方块上方
+2 : 下探到方块
+3 : 闭合夹爪
+4 : 抬起方块
+5 : 移动到托盘上方
+6 : 下降到托盘
+7 : 张开夹爪
+```
+
+场景参照物：
+
+```text
+红色轴：桌面 X 方向
+绿色轴：桌面 Y 方向
+蓝色轴：桌面 Z 方向
+绿色竖杆/横杠：cube 抬起高度参考线
+青色十字准星：夹爪末端对准点
+橙色/紫色 cube：随机摆放的干扰方块，当前任务仍然抓蓝色 cube
+```
+
+## 08_replay_recorded_actions.py
+
+回放 raw npz 数据里的动作轨迹：
+
+```bash
+unset MUJOCO_GL
+python examples/08_replay_recorded_actions.py
+```
+
+只回放第 3 条：
+
+```bash
+python examples/08_replay_recorded_actions.py --episode 3 --camera top_oblique
+```
+
+循环播放：
+
+```bash
+python examples/08_replay_recorded_actions.py --loop
+```

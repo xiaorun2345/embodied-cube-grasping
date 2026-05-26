@@ -66,7 +66,7 @@ cube-grasp-record --episodes 5 --repo-id local/panda_6dof_7ctrl_test
 正式给 SmolVLA 微调建议先采 50 到 200 条：
 
 ```bash
-cube-grasp-record --episodes 100 --repo-id local/panda_6dof_7ctrl
+cube-grasp-record --episodes 100 --repo-id local/panda_6dof_7ctrl --success-only
 ```
 
 数据会写到：
@@ -83,6 +83,12 @@ OUTPUT_DIR=outputs/smolvla_panda_6dof_7ctrl \
 STEPS=5000 \
 BATCH_SIZE=16 \
 bash scripts/train_smolvla_cube.sh
+```
+
+如果只是验证刚采集的 10 条成功轨迹能否启动训练：
+
+```bash
+bash scripts/train_smolvla_10_success.sh
 ```
 
 默认策略基座是 `lerobot/smolvla_base`。显存不足时先把 `BATCH_SIZE` 降到 `4` 或 `8`，再减少图像分辨率采集数据。

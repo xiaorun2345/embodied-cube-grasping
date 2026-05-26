@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--lerobot-root", type=Path, default=Path("outputs/lerobot_datasets"))
     parser.add_argument("--repo-id", default="local/panda_6dof_7ctrl")
     parser.add_argument("--no-lerobot", action="store_true", help="Only write raw compressed npz episodes.")
+    parser.add_argument("--success-only", action="store_true", help="Only save episodes that lift or place the target cube.")
     args = parser.parse_args()
 
     args.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -50,21 +51,24 @@ def main() -> None:
                 rewards.append(float(reward))
                 dones.append(bool(terminated or truncated or step == args.steps - 1))
 
-                if dataset is not None:
-                    _add_lerobot_frame(
-                        dataset,
-                        image=obs["observation.image"],
-                        state=obs["observation.state"],
-                        action=action,
-                    )
-
                 if terminated or truncated:
                     break
 
-            successes += int(info["cube_on_goal"] or info["cube_lifted"])
+            success = bool(info["cube_on_goal"] or info["cube_lifted"])
+            successes += int(success)
+            if args.success_only and not success:
+                continue
+
             _save_raw_episode(args.raw_dir, episode, images, states, actions, rewards, dones)
 
             if dataset is not None:
+                for image, state, action in zip(images, states, actions):
+                    _add_lerobot_frame(
+                        dataset,
+                        image=image,
+                        state=state,
+                        action=action,
+                    )
                 _save_lerobot_episode(dataset)
 
     finally:
@@ -76,6 +80,8 @@ def main() -> None:
     print(f"raw dataset: {args.raw_dir}")
     print(f"LeRobot repo_id: {args.repo_id} root={args.lerobot_root}" if dataset is not None else "LeRobot export skipped")
     print(f"scripted grasp/lift success episodes: {successes}/{args.episodes}")
+    if args.success_only:
+        print("success-only mode: failed episodes were skipped")
 
 
 def _save_raw_episode(
