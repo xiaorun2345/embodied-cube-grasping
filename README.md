@@ -1,6 +1,8 @@
-# LeRobot + SmolVLA + MuJoCo Cube Grasp Demo
+# Embodied Cube Grasping
 
-这个目录给当前工作区新增了一个独立 demo：MuJoCo 桌面抓取场景、脚本专家采集、LeRobotDataset 导出，以及 SmolVLA 微调入口。已有 OpenVLA/ACT 文件没有被改动。
+An embodied AI system for cube grasping and robotic manipulation. This project combines LeRobot, MuJoCo simulation, and SmolVLA training helpers for a cube-to-tray grasping task.
+
+这个仓库包含一个独立 demo：MuJoCo 桌面抓取场景、脚本专家采集、LeRobotDataset 导出，以及 SmolVLA 微调入口。
 
 ## 目录
 
