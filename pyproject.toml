@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lerobot-smolvla-mujoco-demo"
+version = "0.1.0"
+description = "MuJoCo cube-grasp demo environment and LeRobot/SmolVLA training helpers."
+requires-python = ">=3.10"
+dependencies = [
+  "gymnasium>=0.29",
+  "imageio[ffmpeg]>=2.34",
+  "mujoco>=3.2",
+  "numpy>=1.24",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+lerobot = [
+  "lerobot[smolvla] @ git+https://github.com/huggingface/lerobot.git",
+]
+
+[project.scripts]
+cube-grasp-demo = "lerobot_smolvla_mujoco_demo.demo:main"
+cube-grasp-record = "lerobot_smolvla_mujoco_demo.record_dataset:main"
+cube-grasp-eval = "lerobot_smolvla_mujoco_demo.eval_policy:main"
+cube-grasp-viewer = "lerobot_smolvla_mujoco_demo.viewer:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lerobot_smolvla_mujoco_demo = ["assets/mujoco/*.xml"]

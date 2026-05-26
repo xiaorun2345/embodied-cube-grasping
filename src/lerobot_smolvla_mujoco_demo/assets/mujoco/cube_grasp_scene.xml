@@ -1,0 +1,117 @@
+<mujoco model="cube_grasp_tabletop">
+  <compiler angle="degree" autolimits="true"/>
+  <option timestep="0.002" integrator="RK4" gravity="0 0 -9.81"/>
+
+  <default>
+    <joint damping="1.2" armature="0.01"/>
+    <geom condim="4" friction="1.1 0.03 0.003" solimp="0.95 0.99 0.001" solref="0.006 1"/>
+    <position kp="420" kv="36"/>
+  </default>
+
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient" rgb1="0.55 0.70 0.95" rgb2="0.96 0.98 1.00" width="512" height="512"/>
+    <texture name="floor_grid" type="2d" builtin="checker" rgb1="0.78 0.80 0.78" rgb2="0.63 0.66 0.65" width="512" height="512"/>
+    <texture name="wood" type="2d" builtin="checker" rgb1="0.46 0.32 0.20" rgb2="0.58 0.41 0.27" width="512" height="512"/>
+    <material name="floor_mat" texture="floor_grid" texrepeat="8 8" reflectance="0.18"/>
+    <material name="table_mat" texture="wood" texrepeat="3 2" reflectance="0.08"/>
+    <material name="robot_white" rgba="0.88 0.90 0.88 1" specular="0.45" shininess="0.35"/>
+    <material name="robot_dark" rgba="0.10 0.12 0.13 1" specular="0.5" shininess="0.45"/>
+    <material name="cube_blue" rgba="0.10 0.34 0.92 1" specular="0.35" shininess="0.25"/>
+    <material name="tray_floor" rgba="0.95 0.72 0.22 1" specular="0.35" shininess="0.25"/>
+    <material name="tray_wall" rgba="0.98 0.83 0.38 1" specular="0.45" shininess="0.35"/>
+    <material name="tray_inner" rgba="1.00 0.90 0.56 1" specular="0.2" shininess="0.18"/>
+    <material name="accent_red" rgba="0.85 0.14 0.12 1" specular="0.25" shininess="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" mode="targetbody" target="cube" pos="-1.4 -1.0 2.4" diffuse="0.95 0.90 0.82" specular="0.35 0.35 0.35"/>
+    <light name="fill" pos="1.0 0.8 1.4" diffuse="0.25 0.34 0.45" specular="0.05 0.05 0.05"/>
+    <camera name="front" pos="0.78 -0.86 0.62" xyaxes="0.8219 0.5651 0.0715 -0.3406 0.3870 0.8569" fovy="44"/>
+    <camera name="top_oblique" pos="0.98 -0.25 1.05" xyaxes="0.42 0.91 0 -0.73 0.34 0.59" fovy="42"/>
+
+    <geom name="floor" type="plane" size="2.5 2.5 0.01" material="floor_mat"/>
+
+    <body name="table" pos="0.43 0 0.025">
+      <geom name="tabletop" type="box" size="0.50 0.38 0.025" material="table_mat"/>
+      <geom name="front_edge" type="box" pos="0 -0.385 0.017" size="0.51 0.012 0.018" material="robot_dark" contype="0" conaffinity="0"/>
+      <geom name="back_edge" type="box" pos="0 0.385 0.017" size="0.51 0.012 0.018" material="robot_dark" contype="0" conaffinity="0"/>
+    </body>
+
+    <body name="goal_tray" pos="0.55 -0.16 0.052">
+      <geom name="tray_base" type="box" pos="0 0 0.004" size="0.095 0.075 0.004" material="tray_floor"/>
+      <geom name="tray_inner_highlight" type="box" pos="0 0 0.009" size="0.074 0.054 0.001" material="tray_inner" contype="0" conaffinity="0"/>
+      <geom name="tray_front_wall" type="box" pos="0 -0.079 0.018" size="0.103 0.006 0.018" material="tray_wall"/>
+      <geom name="tray_back_wall" type="box" pos="0 0.079 0.018" size="0.103 0.006 0.018" material="tray_wall"/>
+      <geom name="tray_left_wall" type="box" pos="-0.097 0 0.018" size="0.006 0.075 0.018" material="tray_wall"/>
+      <geom name="tray_right_wall" type="box" pos="0.097 0 0.018" size="0.006 0.075 0.018" material="tray_wall"/>
+    </body>
+
+    <body name="cube" pos="0.42 0.05 0.077">
+      <freejoint name="cube_free"/>
+      <geom name="cube_geom" type="box" size="0.027 0.027 0.027" mass="0.045" material="cube_blue"/>
+    </body>
+
+    <body name="robot_base" pos="0 0 0.05">
+      <geom name="panda_base_plate" type="cylinder" size="0.105 0.020" material="robot_dark" contype="0" conaffinity="0"/>
+      <geom name="panda_base_shell" type="cylinder" pos="0 0 0.045" size="0.072 0.045" material="robot_white" contype="0" conaffinity="0"/>
+
+      <body name="panda_base_yaw" pos="0 0 0.08">
+        <joint name="panda_joint1" type="hinge" axis="0 0 1" range="-2.8 2.8"/>
+        <geom name="panda_yaw_joint" type="cylinder" pos="0 0 0.030" size="0.060 0.030" material="robot_dark" contype="0" conaffinity="0"/>
+        <geom name="panda_shoulder_post" type="capsule" fromto="0 0 0.030 0 0 0.180" size="0.034" material="robot_white" contype="0" conaffinity="0"/>
+
+        <body name="panda_shoulder" pos="0 0 0.180">
+          <joint name="panda_joint2" type="hinge" axis="0 -1 0" range="-1.8 1.8"/>
+          <geom name="panda_shoulder_joint" type="sphere" size="0.055" material="robot_dark" contype="0" conaffinity="0"/>
+          <geom name="panda_upper_arm" type="capsule" fromto="0 0 0 0.340 0 0" size="0.036" material="robot_white" contype="0" conaffinity="0"/>
+          <geom name="panda_upper_arm_band" type="cylinder" pos="0.110 0 0" size="0.039 0.010" euler="0 90 0" material="robot_dark" contype="0" conaffinity="0"/>
+
+          <body name="panda_elbow" pos="0.340 0 0">
+            <joint name="panda_joint3" type="hinge" axis="0 -1 0" range="-2.5 2.5"/>
+            <geom name="panda_elbow_joint" type="sphere" size="0.050" material="robot_dark" contype="0" conaffinity="0"/>
+            <geom name="panda_forearm" type="capsule" fromto="0 0 0 0.320 0 0" size="0.031" material="robot_white" contype="0" conaffinity="0"/>
+            <geom name="panda_forearm_band" type="cylinder" pos="0.210 0 0" size="0.034 0.010" euler="0 90 0" material="accent_red" contype="0" conaffinity="0"/>
+
+            <body name="panda_wrist" pos="0.320 0 0">
+              <joint name="panda_joint4" type="hinge" axis="0 -1 0" range="-2.7 2.7"/>
+              <geom name="panda_wrist_joint" type="sphere" size="0.042" material="robot_dark" contype="0" conaffinity="0"/>
+              <body name="panda_wrist_yaw" pos="0 0 0">
+                <joint name="panda_joint5" type="hinge" axis="0 0 1" range="-2.8 2.8"/>
+                <geom name="panda_wrist_yaw_ring" type="cylinder" pos="0 0 -0.018" size="0.044 0.012" material="accent_red" contype="0" conaffinity="0"/>
+
+                <body name="panda_hand" pos="0 0 -0.020">
+                  <joint name="panda_joint6" type="hinge" axis="1 0 0" range="-2.8 2.8"/>
+                  <geom name="panda_hand_shell" type="cylinder" pos="0 0 0" size="0.043 0.026" material="robot_white" contype="0" conaffinity="0"/>
+                  <geom name="panda_palm" type="box" pos="0 0 -0.030" size="0.042 0.052 0.012" material="robot_dark" contype="0" conaffinity="0"/>
+
+                  <body name="left_finger" pos="0 0.060 -0.075">
+                    <joint name="left_gripper" type="slide" axis="0 -1 0" range="0 0.032"/>
+                    <geom name="left_pad" type="box" pos="0 0 0" size="0.015 0.008 0.055" material="robot_white"/>
+                    <geom name="left_tip" type="sphere" pos="0 -0.001 -0.055" size="0.011" material="robot_white"/>
+                  </body>
+
+                  <body name="right_finger" pos="0 -0.060 -0.075">
+                    <joint name="right_gripper" type="slide" axis="0 1 0" range="0 0.032"/>
+                    <geom name="right_pad" type="box" pos="0 0 0" size="0.015 0.008 0.055" material="robot_white"/>
+                    <geom name="right_tip" type="sphere" pos="0 0.001 -0.055" size="0.011" material="robot_white"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="panda_joint1" joint="panda_joint1" ctrlrange="-2.8 2.8" kp="3800" kv="120"/>
+    <position name="panda_joint2" joint="panda_joint2" ctrlrange="-1.8 1.8" kp="4600" kv="145"/>
+    <position name="panda_joint3" joint="panda_joint3" ctrlrange="-2.5 2.5" kp="4600" kv="145"/>
+    <position name="panda_joint4" joint="panda_joint4" ctrlrange="-2.7 2.7" kp="3800" kv="120"/>
+    <position name="panda_joint5" joint="panda_joint5" ctrlrange="-2.8 2.8" kp="2200" kv="80"/>
+    <position name="panda_joint6" joint="panda_joint6" ctrlrange="-2.8 2.8" kp="2200" kv="80"/>
+    <position name="left_finger" joint="left_gripper" ctrlrange="0 0.032" kp="250" kv="18"/>
+    <position name="right_finger" joint="right_gripper" ctrlrange="0 0.032" kp="250" kv="18"/>
+  </actuator>
+</mujoco>
