@@ -96,19 +96,49 @@ bash scripts/download_smolvla_models.sh
 DATASET_REPO_ID=local/panda_6dof_7ctrl_dualcam_state7 \
 DATASET_ROOT=outputs/lerobot_datasets_dualcam_state7 \
 OUTPUT_DIR=outputs/smolvla_panda_dualcam_state7 \
-STEPS=5000 \
+EPOCHS=5 \
 BATCH_SIZE=16 \
 bash scripts/train_smolvla_cube.sh
 ```
 
-如果只是验证刚采集的 10 条成功轨迹能否启动训练：
+使用当前 200 条成功轨迹训练 5 个 epoch，并保存完整日志：
 
 ```bash
-bash scripts/train_smolvla_10_success.sh
+BATCH_SIZE=4 EPOCHS=5 LOG_FREQ=10 bash scripts/train_smolvla_with_logs.sh
+```
+
+继续上次 checkpoint 训练到总共 5 个 epoch：
+
+```bash
+RESUME=1 \
+BATCH_SIZE=4 \
+EPOCHS=5 \
+OUTPUT_DIR=outputs/smolvla_panda_dualcam_state7_200_success_test \
+bash scripts/train_smolvla_with_logs.sh
 ```
 
 默认策略基座是 `lerobot/smolvla_base`。显存不足时先把 `BATCH_SIZE` 降到 `4` 或 `8`，再减少图像分辨率采集数据。
+脚本会按 `steps = ceil(EPOCHS * 总帧数 / BATCH_SIZE)` 自动计算训练步数；当前 51000 帧、`BATCH_SIZE=4`、`EPOCHS=5` 会得到 `STEPS=63750`。继续训练时 `STEPS` 是目标总步数，不是追加步数。
 训练脚本会自动生成本地 `outputs/pretrained/smolvla_panda_dualcam_state7_base/`，把预训练配置适配到当前数据集的 `front` + `top_oblique` 双相机、7 维状态和 7 维动作。
+
+## 测试训练好的模型
+
+保存仿真测试视频：
+
+```bash
+MUJOCO_GL=egl python examples/09_run_trained_policy.py \
+  --policy-path outputs/smolvla_panda_dualcam_state7_200_success_test/checkpoints/010000/pretrained_model \
+  --episodes 5 \
+  --steps 280 \
+  --out outputs/policy_eval_5eps.mp4
+```
+
+实时 MuJoCo viewer：
+
+```bash
+unset MUJOCO_GL
+python examples/09_run_trained_policy.py --viewer --camera front
+```
 
 本机已用国内源把 PyTorch 匹配到当前驱动可用的 CUDA 11.8 wheel：
 

@@ -204,3 +204,23 @@ python examples/08_replay_recorded_actions.py --episode 3 --camera top_oblique
 ```bash
 python examples/08_replay_recorded_actions.py --loop
 ```
+
+## 09_run_trained_policy.py
+
+加载训练好的 SmolVLA checkpoint，在 MuJoCo 环境里闭环控制机械臂。
+
+保存测试视频：
+
+```bash
+MUJOCO_GL=egl python examples/09_run_trained_policy.py \
+  --policy-path outputs/smolvla_panda_dualcam_state7_200_success_test/checkpoints/010000/pretrained_model \
+  --episodes 5 \
+  --out outputs/policy_eval_5eps.mp4
+```
+
+实时查看：
+
+```bash
+unset MUJOCO_GL
+python examples/09_run_trained_policy.py --viewer --camera front
+```
