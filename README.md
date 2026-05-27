@@ -60,26 +60,42 @@ cube-grasp-demo --camera top_oblique --out outputs/cube_grasp_top.mp4
 先跑小规模确认：
 
 ```bash
-cube-grasp-record --episodes 5 --repo-id local/panda_6dof_7ctrl_test
+cube-grasp-record \
+  --episodes 5 \
+  --raw-dir outputs/cube_grasp_dualcam_state7_test_raw \
+  --lerobot-root outputs/lerobot_datasets_dualcam_state7_test \
+  --repo-id local/panda_6dof_7ctrl_dualcam_state7_test \
+  --success-only
 ```
 
 正式给 SmolVLA 微调建议先采 50 到 200 条：
 
 ```bash
-cube-grasp-record --episodes 100 --repo-id local/panda_6dof_7ctrl --success-only
+cube-grasp-record \
+  --episodes 100 \
+  --raw-dir outputs/cube_grasp_dualcam_state7_100_raw \
+  --lerobot-root outputs/lerobot_datasets_dualcam_state7 \
+  --repo-id local/panda_6dof_7ctrl_dualcam_state7 \
+  --success-only
 ```
 
 数据会写到：
 
-- `outputs/cube_grasp_raw/episode_*.npz`
-- `outputs/lerobot_datasets/local/panda_6dof_7ctrl`（如果 LeRobot 可导入）
+- `outputs/cube_grasp_dualcam_state7_*/episode_*.npz`
+- `outputs/lerobot_datasets_dualcam_state7/`（如果 LeRobot 可导入）
 
 ## 训练 SmolVLA
 
+先预下载模型权重：
+
 ```bash
-DATASET_REPO_ID=local/panda_6dof_7ctrl \
-DATASET_ROOT=outputs/lerobot_datasets \
-OUTPUT_DIR=outputs/smolvla_panda_6dof_7ctrl \
+bash scripts/download_smolvla_models.sh
+```
+
+```bash
+DATASET_REPO_ID=local/panda_6dof_7ctrl_dualcam_state7 \
+DATASET_ROOT=outputs/lerobot_datasets_dualcam_state7 \
+OUTPUT_DIR=outputs/smolvla_panda_dualcam_state7 \
 STEPS=5000 \
 BATCH_SIZE=16 \
 bash scripts/train_smolvla_cube.sh
@@ -92,6 +108,7 @@ bash scripts/train_smolvla_10_success.sh
 ```
 
 默认策略基座是 `lerobot/smolvla_base`。显存不足时先把 `BATCH_SIZE` 降到 `4` 或 `8`，再减少图像分辨率采集数据。
+训练脚本会自动生成本地 `outputs/pretrained/smolvla_panda_dualcam_state7_base/`，把预训练配置适配到当前数据集的 `front` + `top_oblique` 双相机、7 维状态和 7 维动作。
 
 本机已用国内源把 PyTorch 匹配到当前驱动可用的 CUDA 11.8 wheel：
 

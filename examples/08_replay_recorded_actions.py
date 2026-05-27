@@ -29,7 +29,7 @@ CAMERAS = ("free", "front", "top_oblique")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Replay recorded raw NPZ action trajectories.")
-    parser.add_argument("--raw-dir", type=Path, default=Path("outputs/cube_grasp_success_10_raw"))
+    parser.add_argument("--raw-dir", type=Path, default=Path("outputs/cube_grasp_dualcam_state7_200_raw"))
     parser.add_argument("--episode", type=int, default=None, help="Replay one episode index. Default replays all.")
     parser.add_argument("--record-seed", type=int, default=42, help="Seed used during data collection.")
     parser.add_argument("--camera", choices=CAMERAS, default="front")

@@ -60,7 +60,12 @@ def _load_policy(policy_path: str) -> Any:
 
 def _policy_action(policy: Any, obs: dict[str, np.ndarray]) -> np.ndarray:
     batch = {
-        "observation.images.front": torch.from_numpy(obs["observation.image"]).permute(2, 0, 1).float()[None] / 255.0,
+        "observation.images.front": torch.from_numpy(obs["observation.images.front"]).permute(2, 0, 1).float()[None]
+        / 255.0,
+        "observation.images.top_oblique": torch.from_numpy(obs["observation.images.top_oblique"])
+        .permute(2, 0, 1)
+        .float()[None]
+        / 255.0,
         "observation.state": torch.from_numpy(obs["observation.state"]).float()[None],
         "task": [TASK_DESCRIPTION],
     }
@@ -73,7 +78,7 @@ def _policy_action(policy: Any, obs: dict[str, np.ndarray]) -> np.ndarray:
         out = out.get("action", out.get("actions"))
     if isinstance(out, torch.Tensor):
         out = out.detach().cpu().numpy()
-    return np.asarray(out, dtype=np.float32).reshape(-1)[:4].clip(-1.0, 1.0)
+    return np.asarray(out, dtype=np.float32).reshape(-1)[:7].clip(-1.0, 1.0)
 
 
 if __name__ == "__main__":

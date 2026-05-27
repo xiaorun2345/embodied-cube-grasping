@@ -33,17 +33,6 @@ HOME_TARGETS = np.array(
 STATE_NAMES = [
     *ARM_JOINT_NAMES,
     "gripper_closed",
-    "cube_x",
-    "cube_y",
-    "cube_z",
-    "cube_qw",
-    "cube_qx",
-    "cube_qy",
-    "cube_qz",
-    "goal_x",
-    "goal_y",
-    "goal_z",
-    "cube_on_goal",
 ]
 TASK_DESCRIPTION = "Pick up the blue cube and place it inside the gold tray."
 
@@ -101,6 +90,8 @@ class CubeGraspEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 "observation.image": spaces.Box(0, 255, shape=(height, width, 3), dtype=np.uint8),
+                "observation.images.front": spaces.Box(0, 255, shape=(height, width, 3), dtype=np.uint8),
+                "observation.images.top_oblique": spaces.Box(0, 255, shape=(height, width, 3), dtype=np.uint8),
                 "observation.state": spaces.Box(-np.inf, np.inf, shape=(len(STATE_NAMES),), dtype=np.float32),
             }
         )
@@ -186,8 +177,8 @@ class CubeGraspEnv(gym.Env):
         truncated = self._step_count >= self.max_steps
         return self._observation(), reward, terminated, truncated, info
 
-    def render(self):
-        self.renderer.update_scene(self.data, camera=self.camera)
+    def render(self, camera: str | None = None):
+        self.renderer.update_scene(self.data, camera=camera or self.camera)
         return self.renderer.render()
 
     def close(self):
@@ -339,21 +330,20 @@ class CubeGraspEnv(gym.Env):
             values.append(2.0 * (float(value) - lo) / (hi - lo) - 1.0)
         return np.asarray(values, dtype=np.float32).clip(-1.0, 1.0)
 
+    def _joint_state(self) -> np.ndarray:
+        joints = [float(self.data.qpos[self._joint_qpos[name]]) for name in ARM_JOINT_NAMES]
+        gripper_closed = float(self._finger_target / self.workspace.gripper[1]) if self.workspace.gripper[1] else 0.0
+        return np.asarray([*joints, gripper_closed], dtype=np.float32)
+
     def _observation(self) -> dict[str, np.ndarray]:
-        cube = self.cube_pose()
-        targets = self._denormalize_action(self._last_action)
-        info = self._info(render=False)
-        state = np.concatenate(
-            [
-                targets,
-                cube[:7],
-                self.goal_pos,
-                np.array([float(info["cube_on_goal"])], dtype=np.float32),
-            ]
-        ).astype(np.float32)
+        front_image = self.render("front").copy()
+        top_image = self.render("top_oblique").copy()
+        image = top_image if self.camera == "top_oblique" else front_image
         return {
-            "observation.image": self.render(),
-            "observation.state": state,
+            "observation.image": image,
+            "observation.images.front": front_image,
+            "observation.images.top_oblique": top_image,
+            "observation.state": self._joint_state(),
         }
 
     def _info(self, *, render: bool = True) -> dict[str, Any]:

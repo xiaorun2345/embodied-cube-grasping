@@ -10,7 +10,9 @@ outputs/
 third_party/
 MUJOCO_LOG.TXT
 MJDATA.TXT
+MJMODEL.TXT
 
 *.mp4
 *.npz
 *.log
+*.png

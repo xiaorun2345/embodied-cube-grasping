@@ -20,11 +20,15 @@ def main() -> None:
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--camera", default="front", choices=["front", "top_oblique"])
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--raw-dir", type=Path, default=Path("outputs/cube_grasp_raw"))
-    parser.add_argument("--lerobot-root", type=Path, default=Path("outputs/lerobot_datasets"))
-    parser.add_argument("--repo-id", default="local/panda_6dof_7ctrl")
+    parser.add_argument("--raw-dir", type=Path, default=Path("outputs/cube_grasp_dualcam_state7_raw"))
+    parser.add_argument("--lerobot-root", type=Path, default=Path("outputs/lerobot_datasets_dualcam_state7"))
+    parser.add_argument("--repo-id", default="local/panda_6dof_7ctrl_dualcam_state7")
     parser.add_argument("--no-lerobot", action="store_true", help="Only write raw compressed npz episodes.")
-    parser.add_argument("--success-only", action="store_true", help="Only save episodes that lift or place the target cube.")
+    parser.add_argument(
+        "--success-only",
+        action="store_true",
+        help="Only save episodes that lifted the target cube and placed it in the tray.",
+    )
     args = parser.parse_args()
 
     args.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -35,17 +39,21 @@ def main() -> None:
     try:
         for episode in trange(args.episodes, desc="episodes"):
             obs, info = env.reset(seed=args.seed + episode)
-            images: list[np.ndarray] = []
+            front_images: list[np.ndarray] = []
+            top_images: list[np.ndarray] = []
             states: list[np.ndarray] = []
             actions: list[np.ndarray] = []
             rewards: list[float] = []
             dones: list[bool] = []
+            lifted_once = False
 
             for step in range(args.steps):
                 action = scripted_grasp_action(env, step)
                 obs, reward, terminated, truncated, info = env.step(action)
+                lifted_once = lifted_once or bool(info["cube_lifted"])
 
-                images.append(obs["observation.image"])
+                front_images.append(obs["observation.images.front"])
+                top_images.append(obs["observation.images.top_oblique"])
                 states.append(obs["observation.state"])
                 actions.append(action.astype(np.float32))
                 rewards.append(float(reward))
@@ -54,18 +62,19 @@ def main() -> None:
                 if terminated or truncated:
                     break
 
-            success = bool(info["cube_on_goal"] or info["cube_lifted"])
+            success = bool(lifted_once and info["cube_on_goal"])
             successes += int(success)
             if args.success_only and not success:
                 continue
 
-            _save_raw_episode(args.raw_dir, episode, images, states, actions, rewards, dones)
+            _save_raw_episode(args.raw_dir, episode, front_images, top_images, states, actions, rewards, dones)
 
             if dataset is not None:
-                for image, state, action in zip(images, states, actions):
+                for front_image, top_image, state, action in zip(front_images, top_images, states, actions):
                     _add_lerobot_frame(
                         dataset,
-                        image=image,
+                        front_image=front_image,
+                        top_image=top_image,
                         state=state,
                         action=action,
                     )
@@ -87,7 +96,8 @@ def main() -> None:
 def _save_raw_episode(
     raw_dir: Path,
     episode: int,
-    images: list[np.ndarray],
+    front_images: list[np.ndarray],
+    top_images: list[np.ndarray],
     states: list[np.ndarray],
     actions: list[np.ndarray],
     rewards: list[float],
@@ -95,7 +105,9 @@ def _save_raw_episode(
 ) -> None:
     np.savez_compressed(
         raw_dir / f"episode_{episode:05d}.npz",
-        images=np.asarray(images, dtype=np.uint8),
+        images=np.asarray(front_images, dtype=np.uint8),
+        images_front=np.asarray(front_images, dtype=np.uint8),
+        images_top_oblique=np.asarray(top_images, dtype=np.uint8),
         states=np.asarray(states, dtype=np.float32),
         actions=np.asarray(actions, dtype=np.float32),
         rewards=np.asarray(rewards, dtype=np.float32),
@@ -115,6 +127,11 @@ def _maybe_create_lerobot_dataset(args: argparse.Namespace) -> Any | None:
 
     features = {
         "observation.images.front": {
+            "dtype": "image",
+            "shape": (args.height, args.width, 3),
+            "names": ["height", "width", "channel"],
+        },
+        "observation.images.top_oblique": {
             "dtype": "image",
             "shape": (args.height, args.width, 3),
             "names": ["height", "width", "channel"],
@@ -157,9 +174,17 @@ def _import_lerobot_dataset():
         return LeRobotDataset
 
 
-def _add_lerobot_frame(dataset: Any, *, image: np.ndarray, state: np.ndarray, action: np.ndarray) -> None:
+def _add_lerobot_frame(
+    dataset: Any,
+    *,
+    front_image: np.ndarray,
+    top_image: np.ndarray,
+    state: np.ndarray,
+    action: np.ndarray,
+) -> None:
     frame = {
-        "observation.images.front": image,
+        "observation.images.front": front_image,
+        "observation.images.top_oblique": top_image,
         "observation.state": state.astype(np.float32),
         "action": action.astype(np.float32),
         "task": TASK_DESCRIPTION,
