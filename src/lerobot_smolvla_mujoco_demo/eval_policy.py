@@ -34,6 +34,23 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("outputs/cube_grasp_policy_eval.mp4"))
     parser.add_argument("--viewer", action="store_true", help="Show the MuJoCo viewer while running.")
     parser.add_argument("--fps", type=float, default=30.0)
+    parser.add_argument(
+        "--gripper-latch",
+        action="store_true",
+        help="Keep the gripper closed after a near-cube close command until the policy opens near the tray.",
+    )
+    parser.add_argument(
+        "--latch-close-threshold",
+        type=float,
+        default=0.0,
+        help="Normalized gripper action above which the policy is treated as trying to close.",
+    )
+    parser.add_argument(
+        "--latch-release-threshold",
+        type=float,
+        default=0.25,
+        help="Normalized gripper action below which the policy is treated as trying to open at the tray.",
+    )
     args = parser.parse_args()
 
     configure_offline_hf_cache()
@@ -129,9 +146,11 @@ def run_to_video(env: CubeGraspEnv, policy: Any, preprocessor: Any, postprocesso
             policy.reset()
         obs, info = env.reset(seed=args.seed + episode)
         lifted_once = False
+        gripper_latched = False
 
         for _step in range(args.steps):
             action = select_action(policy, preprocessor, postprocessor, obs)
+            action, gripper_latched = maybe_latch_gripper(action, env, gripper_latched, args)
             obs, _reward, terminated, truncated, info = env.step(action)
             lifted_once = lifted_once or bool(info["cube_lifted"])
             frames.append(obs["observation.image"])
@@ -164,12 +183,14 @@ def run_with_viewer(env: CubeGraspEnv, policy: Any, preprocessor: Any, postproce
                 policy.reset()
             obs, info = env.reset(seed=args.seed + episode)
             lifted_once = False
+            gripper_latched = False
 
             start = time.perf_counter()
             for step in range(args.steps):
                 if not viewer.is_running():
                     break
                 action = select_action(policy, preprocessor, postprocessor, obs)
+                action, gripper_latched = maybe_latch_gripper(action, env, gripper_latched, args)
                 obs, _reward, terminated, truncated, info = env.step(action)
                 lifted_once = lifted_once or bool(info["cube_lifted"])
                 viewer.sync()
@@ -209,6 +230,35 @@ def select_action(policy: Any, preprocessor: Any, postprocessor: Any, obs: dict[
     if isinstance(action, torch.Tensor):
         action = action.detach().cpu().numpy()
     return np.asarray(action, dtype=np.float32).reshape(-1)[:7].clip(-1.0, 1.0)
+
+
+def maybe_latch_gripper(
+    action: np.ndarray,
+    env: CubeGraspEnv,
+    gripper_latched: bool,
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, bool]:
+    if not args.gripper_latch:
+        return action, gripper_latched
+
+    action = action.copy()
+    status = env.grasp_status()
+    wrist_xy = np.array([status["wrist_x"], status["wrist_y"]], dtype=np.float32)
+    near_goal = float(np.linalg.norm(wrist_xy - env.goal_pos[:2])) < 0.10
+    wants_close = float(action[-1]) >= args.latch_close_threshold
+    wants_release = float(action[-1]) <= args.latch_release_threshold
+    near_cube = bool(status["xy_dist"] < 0.095 and status["z_dist"] < 0.085)
+
+    if not gripper_latched and wants_close and near_cube:
+        gripper_latched = True
+
+    if gripper_latched:
+        if near_goal and wants_release:
+            gripper_latched = False
+        else:
+            action[-1] = 1.0
+
+    return action, gripper_latched
 
 
 def configure_viewer_camera(viewer: Any, env: CubeGraspEnv, camera: str) -> None:
